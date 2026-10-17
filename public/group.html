@@ -1,0 +1,27 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hồ sơ đoàn</title><link rel="stylesheet" href="app.css"></head><body>
+<div id="bar"></div><main id="main"></main><script src="app.js"></script><script>
+const id=new URLSearchParams(location.search).get('id');let c,dirty=false;
+const SEC={1:'A · Sale — hồ sơ cá nhân',11:'B · Sale — công ty bảo lãnh, tổ chức chuyến đi',17:'C · Điều hành — hành trình'};
+(async()=>{await boot();try{c=await api('/api/customers/'+id);draw()}catch{location.href='/dashboard.html'}})();
+onbeforeunload=e=>{if(dirty)e.preventDefault()};
+function draw(){const ro=!edG(),vo=!stt(),done=Object.values(c.checks).filter(x=>x.status==='ok').length,col=Object.values(c.checks).filter(x=>x.collected).length;
+ let h=`<a href="/dashboard.html" class="m">← Danh sách đoàn</a><h1>${esc(c.name)}</h1><div class="m">Tạo bởi ${esc(c.createdBy)}${c.updatedBy?' · cập nhật bởi '+esc(c.updatedBy)+' '+new Date(c.updatedAt).toLocaleString('vi-VN'):''}</div>
+ <div class="bar" style="height:12px"><i style="width:${done/23*100}%"></i></div><div class="m">Đủ ${done}/23 · Đã thu ${col}/23 · ${c.files.length} file</div>
+ <div class="g"><label>Tên đoàn<input id="name" value="${esc(c.name)}" ${ro?'disabled':''}></label><label>Trưởng đoàn<input id="leader" value="${esc(c.leader)}" ${ro?'disabled':''}></label><label>Số khách<input id="pax" type="number" value="${esc(c.pax)}" ${ro?'disabled':''}></label><label>Nước nộp<input id="country" value="${esc(c.country)}" ${ro?'disabled':''}></label><label>Ngày nộp<input id="date" type="date" value="${esc(c.date)}" ${ro?'disabled':''}></label></div>
+ <label>Ghi chú chung<textarea id="note" rows="2" ${ro?'disabled':''}>${esc(c.note)}</textarea></label><br><br>
+ <table><tr><th>#</th><th>Hạng mục</th><th>Đã thu</th><th>Visa kiểm tra</th><th>Ghi chú</th><th>File scan (kéo thả vào dòng)</th></tr>`;
+ ITEMS.forEach((nm,k)=>{const i=k+1,o=c.checks[i]||{};if(SEC[i])h+=`<tr class="s"><td colspan="6">${SEC[i]}</td></tr>`;
+  const fs=c.files.filter(f=>f.item===i).map(f=>`<span class="f"><a href="/api/customers/${c.id}/files/${f.id}?view=1" target="_blank">Xem ${esc(f.name)}</a><a href="/api/customers/${c.id}/files/${f.id}" title="Tải về">⬇</a>${me.role==='admin'||f.by===me.username?`<a href="#" onclick="del('${f.id}');return false">×</a>`:''}</span>`).join('');
+  h+=`<tr class="r" style="animation-delay:${k*25}ms" data-i="${i}"><td>${i}</td><td><b>${esc(nm)}</b></td><td><input type="checkbox" style="width:auto" id="c${i}" ${o.collected?'checked':''} ${own(i)?'':'disabled'}></td><td><select class="sel ${o.status||''}" id="s${i}" ${vo?'disabled':''} onchange="this.className='sel '+this.value"><option value="">—</option><option value="ok" ${o.status==='ok'?'selected':''}>Đủ</option><option value="missing" ${o.status==='missing'?'selected':''}>Thiếu</option><option value="extra" ${o.status==='extra'?'selected':''}>Bổ sung</option></select></td><td><input id="n${i}" value="${esc(o.remark)}" placeholder="${upl(i)?'Ghi chú…':''}" ${upl(i)?'':'disabled'}></td><td>${fs}${upl(i)?`<br><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="up(${i},this.files)">`:''}</td></tr>`});
+ h+=`</table><div class="g" style="grid-template-columns:2fr 1fr"><label>Danh sách thiếu / yêu cầu bổ sung<textarea id="missing" rows="3" ${vo?'disabled':''}>${esc(c.missing)}</textarea></label><label>Kết luận<select id="conclusion" ${vo?'disabled':''}>${['','Đủ hồ sơ – sẵn sàng nộp','Thiếu hồ sơ – chờ bổ sung','Cần bổ sung theo yêu cầu lãnh sự'].map(v=>`<option ${c.conclusion===v?'selected':''}>${v}</option>`).join('')}</select></label></div>
+ <div class="save"><button class="p" onclick="saveC()">Lưu thay đổi</button><a class="btn" href="/api/customers/${c.id}" download="${c.id}.json">Tải JSON</a><button onclick="print()">In phiếu</button><span class="m" id="dm"></span></div>`;
+ $('#main').innerHTML=h;dirty=false;document.title=c.name;
+ $('#main').oninput=()=>{dirty=true;$('#dm').textContent='Có thay đổi chưa lưu'};
+ document.querySelectorAll('tr.r').forEach(r=>{const i=+r.dataset.i;if(!upl(i))return;r.ondragover=e=>{e.preventDefault();r.classList.add('drag')};r.ondragleave=()=>r.classList.remove('drag');r.ondrop=e=>{e.preventDefault();r.classList.remove('drag');up(i,e.dataTransfer.files)}})}
+async function saveC(){const b={checks:{}};for(const k of['name','leader','pax','country','date','note','missing','conclusion'])b[k]=$('#'+k).value;
+ ITEMS.forEach((_,k)=>{const i=k+1;b.checks[i]={collected:$('#c'+i).checked,status:$('#s'+i).value,remark:$('#n'+i).value}});
+ try{c=await api('/api/customers/'+id,{method:'PUT',body:b});draw();toast('Đã lưu thông tin đoàn')}catch(e){toast(e.message)}}
+async function up(i,files){if(!files.length)return;if(dirty)await saveC();const fd=new FormData();fd.append('item',i);[...files].forEach(f=>fd.append('files',f));
+ try{c=await api(`/api/customers/${id}/files`,{method:'POST',body:fd});draw();toast('Đã upload '+files.length+' file')}catch(e){toast(e.message)}}
+async function del(fid){if(confirm('Xóa file này?')){c=await api(`/api/customers/${id}/files/${fid}`,{method:'DELETE'});draw()}}
+</script></body></html>

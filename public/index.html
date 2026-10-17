@@ -1,0 +1,14 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Đăng nhập · Hồ sơ visa</title><link rel="stylesheet" href="app.css">
+<style>body{display:grid;place-items:center;min-height:100vh;background:linear-gradient(135deg,#ede9fe,#e6f4f1)}.box{background:#fff;padding:36px;border-radius:18px;width:min(380px,92vw);box-shadow:0 20px 50px #0002;display:grid;gap:12px;animation:up .5s}form{display:grid;gap:10px}.tabs{display:flex;gap:8px}.tabs button{flex:1}.tabs .on{background:var(--pu);color:#fff;border-color:var(--pu)}</style></head><body>
+<div class="box"><div class="brand" style="font-size:22px">Visa Schengen</div><div class="m">Quản lý hồ sơ theo đoàn · Sale · Điều hành · Visa</div>
+<div class="tabs"><button id="t1" class="on" onclick="tab(1)">Đăng nhập</button><button id="t2" onclick="tab(2)">Đăng ký</button></div>
+<form id="f1"><input name="u" placeholder="Tên đăng nhập" required><input name="p" type="password" placeholder="Mật khẩu" required><button class="p">Đăng nhập</button></form>
+<form id="f2" hidden><input name="n" placeholder="Họ tên" required><input name="u" placeholder="Tên đăng nhập (a-z, 0-9, _)" required><input name="p" type="password" placeholder="Mật khẩu ≥ 6 ký tự" required><button class="p">Gửi yêu cầu cấp quyền</button></form>
+<div id="msg" style="color:#b91c1c"></div></div>
+<script src="app.js"></script><script>
+const go=()=>location.href='/dashboard.html',say=(t,ok)=>{$('#msg').style.color=ok?'#047857':'#b91c1c';$('#msg').textContent=t};
+function tab(n){$('#f1').hidden=n!==1;$('#f2').hidden=n!==2;$('#t1').className=n===1?'on':'';$('#t2').className=n===2?'on':'';say('')}
+api('/api/me').then(go).catch(()=>{});
+$('#f1').onsubmit=async e=>{e.preventDefault();try{await api('/api/login',{method:'POST',body:{username:e.target.u.value,password:e.target.p.value}});go()}catch(x){say(x.message)}};
+$('#f2').onsubmit=async e=>{e.preventDefault();try{await api('/api/register',{method:'POST',body:{name:e.target.n.value,username:e.target.u.value,password:e.target.p.value}});e.target.reset();say('Đã gửi yêu cầu. Chờ admin duyệt rồi đăng nhập.',1)}catch(x){say(x.message)}};
+</script></body></html>
